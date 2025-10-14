@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo $VIRTUAL_ENV)",
+      "Bash(python3:*)",
+      "Bash(source:*)",
+      "Bash(python -m pip:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
