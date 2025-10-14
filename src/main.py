@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from database.connection import get_db
 from database.orm import Todo
-from database.repository import get_todos
+from database.repository import get_todos, create_todo
 from schema.request import CreateTodoRequest
 from schema.response import ToDoSchema
 
@@ -41,7 +41,7 @@ todo_date = {
 def get_todos1(session: Session = Depends(get_db)):
   todos: List[Todo] = get_todos(session=session)
 
-  ToDoSchema.from_orm(todo)
+  ToDoSchema.model_validate(todos)
 
   return todos
 
@@ -58,23 +58,24 @@ def get_todo(todo_id: int):
     return todo
 
 @app.post("/todos")
-def create_todo(request: CreateTodoRequest):
+def create_todo_handler(
+    request: CreateTodoRequest,
+    session: Session = Depends(get_db)
+):
   todo: Todo = Todo.create(request=request)
+  todo: Todo = create_todo(session=session, todo=todo)
 
-
-
-  todo_date[request.id] = request.model_dump()
-  return todo_date[request.id]
+  return ToDoSchema.model_validate(todo)
 
 @app.patch("/todos/{todo_id}")
 def update_todo(
     todo_id: int,
     is_done: bool = Body(..., embed=True),
+    session: Session = Depends(get_db)
 ):
+  todo: Todo | None = get_todo_by_todo_id(session=session, todo_id=todo_id)
   todo = todo_date.get(todo_id)
   if todo:
-    todo["is_done"] = is_done
-    return todo
   return {}
 
 @app.delete("/todos/{todo_id}")

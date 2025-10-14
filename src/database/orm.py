@@ -22,3 +22,11 @@ class Todo(Base):
       contents=request.contents,
       is_done=request.is_done
     )
+
+  def done(self) -> "Todo":
+    self.is_done = True
+    return self
+
+  def undone(self) -> "Todo":
+    self.is_done = False
+    return self
