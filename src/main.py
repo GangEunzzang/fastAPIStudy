@@ -1,14 +1,12 @@
-from http.client import HTTPException
 from typing import List
 
-from fastapi import FastAPI, Body, Depends
-from pydantic import BaseModel
+from fastapi import FastAPI, Body, Depends, HTTPException  # ✅ 수정
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
 from database.orm import Todo
 from database.repository import get_todos, create_todo, get_todo_by_todo_id, \
-  update_todo
+    update_todo, delete_todo
 from schema.request import CreateTodoRequest
 from schema.response import ToDoSchema
 
@@ -17,72 +15,58 @@ app = FastAPI()
 
 @app.get("/")
 def health_check_handler():
-  return {"ping": "pong"}
+    return {"ping": "pong"}
 
 
-todo_date = {
-  1: {
-    "id": 1,
-    "contents": "실전! fastAPI 수강 1",
-    "is_done": True
-  },
-  2: {
-    "id": 2,
-    "contents": "실전! fastAPI 수강 2",
-    "is_done": False
-  },
-  3: {
-    "id": 3,
-    "contents": "실전! fastAPI 수강 3",
-    "is_done": False
-  }
-}
+@app.get("/todos", response_model=List[ToDoSchema])  # ✅ 수정
+def get_todos_handler(session: Session = Depends(get_db)):
+    todos: List[Todo] = get_todos(session=session)
+    return [ToDoSchema.model_validate(todo) for todo in todos]  # ✅ 수정
 
-@app.get("/todos")
-def get_todos1(session: Session = Depends(get_db)):
-  todos: List[Todo] = get_todos(session=session)
 
-  ToDoSchema.model_validate(todos)
-
-  return todos
-
-@app.get("/todos2")
-def get_todos2():
-  sorted1 = sorted(todo_date.values(), key=lambda x: x['id'], reverse=True)
-  return sorted1
-
-@app.get("/todos/{todo_id}", status_code=200)
-def get_todo(todo_id: int):
-    todo = todo_date.get(todo_id)
+@app.get("/todos/{todo_id}", response_model=ToDoSchema, status_code=200)
+def get_todo(
+        todo_id: int,
+        session: Session = Depends(get_db)
+):
+    todo: Todo | None = get_todo_by_todo_id(session=session, todo_id=todo_id)
     if not todo:
         raise HTTPException(status_code=404, detail="Todo not found")
     return todo
 
-@app.post("/todos")
+
+@app.post("/todos", response_model=ToDoSchema)
 def create_todo_handler(
-    request: CreateTodoRequest,
-    session: Session = Depends(get_db)
+        request: CreateTodoRequest,
+        session: Session = Depends(get_db)
 ):
-  todo: Todo = Todo.create(request=request)
-  todo: Todo = create_todo(session=session, todo=todo)
+    todo: Todo = Todo.create(request=request)
+    todo: Todo = create_todo(session=session, todo=todo)
+    return ToDoSchema.model_validate(todo)
 
-  return ToDoSchema.model_validate(todo)
 
-@app.patch("/todos/{todo_id}")
+@app.patch("/todos/{todo_id}", response_model=ToDoSchema)
 def update_todo_handler(
-    todo_id: int,
-    is_done: bool = Body(..., embed=True),
-    session: Session = Depends(get_db)
+        todo_id: int,
+        is_done: bool = Body(..., embed=True),
+        session: Session = Depends(get_db)
 ):
-  todo: Todo | None = get_todo_by_todo_id(session=session, todo_id=todo_id)
-  if todo:
+    todo: Todo | None = get_todo_by_todo_id(session=session, todo_id=todo_id)
+    if not todo:
+        raise HTTPException(status_code=404, detail="Todo not found")
+
     todo.done() if is_done else todo.undone()
     todo: Todo = update_todo(session=session, todo=todo)
     return ToDoSchema.model_validate(todo)
-  raise HTTPException(status_code=404, detail="Todo not found")
 
-@app.delete("/todos/{todo_id}")
-def delete_todo(todo_id: int):
-  todo_date.pop(todo_id, None)
-  return todo_date
 
+@app.delete("/todos/{todo_id}", status_code=204)  # ✅ 수정
+def delete_todo_handler(
+        todo_id: int,
+        session: Session = Depends(get_db)
+):
+    todo = get_todo_by_todo_id(session=session, todo_id=todo_id)
+    if not todo:
+        raise HTTPException(status_code=404, detail="Todo not found")
+    delete_todo(todo_id=todo_id, session=session)
+    return None
