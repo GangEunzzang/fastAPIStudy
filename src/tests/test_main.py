@@ -1,29 +1,31 @@
 from database import repository as todo_repository
 
+from tests import fixtures as todo_fixtures
 
-def test_health_check_handler(client):
+
+def test_헬스체크_호출시_정상응답_반환(client):
     response = client.get("/")
+
     assert response.status_code == 200
     assert response.json() == {"ping": "pong"}
 
 
-def test_get_todos_empty(client):
+def test_빈목록_조회시_빈리스트_반환(client):
     response = client.get("/todos")
+
     assert response.status_code == 200
     assert response.json() == []
 
 
-def test_create_todo_and_get_todos(client, test_db):
-    todo_data = {"contents": "Test Todo", "is_done": False}
-    response = client.post("/todos", json=todo_data)
-    assert response.status_code == 200
+def test_todo생성_후_db조회가능(client, test_db):
+    created_todo = todo_fixtures.todo_등록_요청(client)
 
-    created_todo = response.json()
-    assert created_todo["contents"] == todo_data["contents"]
+    assert created_todo["contents"] == "Test Todo"
     assert created_todo["is_done"] is False
     assert "id" in created_todo
 
     todo = todo_repository.find_by_id(session=test_db, todo_id=created_todo["id"])
+
     assert todo is not None
-    assert todo.contents == todo_data["contents"]
+    assert todo.contents == "Test Todo"
     assert todo.is_done is False
