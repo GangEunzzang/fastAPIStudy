@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 
 from database.connection import get_db
 from database.orm import Todo
-from database.repository import get_todos, create_todo, get_todo_by_todo_id, \
-    update_todo, delete_todo
+from database.repository import find_all, save, find_by_id, \
+    update, delete
 from schema.request import CreateTodoRequest
 from schema.response import ToDoSchema
 
@@ -20,7 +20,7 @@ def health_check_handler():
 
 @app.get("/todos", response_model=List[ToDoSchema])  # ✅ 수정
 def get_todos_handler(session: Session = Depends(get_db)):
-    todos: List[Todo] = get_todos(session=session)
+    todos: List[Todo] = find_all(session=session)
     return [ToDoSchema.model_validate(todo) for todo in todos]  # ✅ 수정
 
 
@@ -29,7 +29,7 @@ def get_todo(
         todo_id: int,
         session: Session = Depends(get_db)
 ):
-    todo: Todo | None = get_todo_by_todo_id(session=session, todo_id=todo_id)
+    todo: Todo | None = find_by_id(session=session, todo_id=todo_id)
     if not todo:
         raise HTTPException(status_code=404, detail="Todo not found")
     return todo
@@ -41,7 +41,7 @@ def create_todo_handler(
         session: Session = Depends(get_db)
 ):
     todo: Todo = Todo.create(request=request)
-    todo: Todo = create_todo(session=session, todo=todo)
+    todo: Todo = save(session=session, todo=todo)
     return ToDoSchema.model_validate(todo)
 
 
@@ -51,12 +51,12 @@ def update_todo_handler(
         is_done: bool = Body(..., embed=True),
         session: Session = Depends(get_db)
 ):
-    todo: Todo | None = get_todo_by_todo_id(session=session, todo_id=todo_id)
+    todo: Todo | None = find_by_id(session=session, todo_id=todo_id)
     if not todo:
         raise HTTPException(status_code=404, detail="Todo not found")
 
     todo.done() if is_done else todo.undone()
-    todo: Todo = update_todo(session=session, todo=todo)
+    todo: Todo = update(session=session, todo=todo)
     return ToDoSchema.model_validate(todo)
 
 
@@ -65,8 +65,8 @@ def delete_todo_handler(
         todo_id: int,
         session: Session = Depends(get_db)
 ):
-    todo = get_todo_by_todo_id(session=session, todo_id=todo_id)
+    todo = find_by_id(session=session, todo_id=todo_id)
     if not todo:
         raise HTTPException(status_code=404, detail="Todo not found")
-    delete_todo(todo_id=todo_id, session=session)
+    delete(todo_id=todo_id, session=session)
     return None
