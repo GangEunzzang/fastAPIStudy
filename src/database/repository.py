@@ -9,6 +9,10 @@ def find_all(session: Session) -> list[Todo]:
 
 
 def find_by_id(session: Session, todo_id: int) -> Todo | None:  # Python 3.9 이하 호환
+  """
+
+  :rtype: Todo | None
+  """
   return session.scalar(
       select(Todo).where(Todo.id == todo_id)
   )

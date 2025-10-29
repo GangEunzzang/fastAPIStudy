@@ -1,31 +1,74 @@
 from database import repository as todo_repository
+from tests.fixtures import TodoFixtures, TestDB
 
-from tests import fixtures as todo_fixtures
 
-
-def test_헬스체크_호출시_정상응답_반환(client):
+def test_헬스체크(client):
+    # when
     response = client.get("/")
 
+    # then
     assert response.status_code == 200
     assert response.json() == {"ping": "pong"}
 
 
-def test_빈목록_조회시_빈리스트_반환(client):
+def test_빈목록조회(client):
+    # when
     response = client.get("/todos")
 
+    # then
     assert response.status_code == 200
     assert response.json() == []
 
 
-def test_todo생성_후_db조회가능(client, test_db):
-    created_todo = todo_fixtures.todo_등록_요청(client)
+def test_목록조회(client):
+    # given
+    TodoFixtures.todo_등록_요청()
+    TodoFixtures.todo_등록_요청()
 
-    assert created_todo["contents"] == "Test Todo"
-    assert created_todo["is_done"] is False
-    assert "id" in created_todo
+    # when
+    response = client.get("/todos")
 
-    todo = todo_repository.find_by_id(session=test_db, todo_id=created_todo["id"])
+    # then
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+
+
+def test_생성(client):
+    # given & when
+    created_todo = TodoFixtures.todo_등록_요청()
+
+    # then
+    todo = todo_repository.find_by_id(session=TestDB.get_session(), todo_id=created_todo["id"])
 
     assert todo is not None
     assert todo.contents == "Test Todo"
     assert todo.is_done is False
+
+
+def test_삭제(client):
+    # given
+    created_todo = TodoFixtures.todo_등록_요청()
+    todo_id = created_todo["id"]
+
+    # when
+    response = client.delete(f"/todos/{todo_id}")
+
+    # then
+    assert response.status_code == 204
+
+    todo = todo_repository.find_by_id(session=TestDB.get_session(), todo_id=todo_id)
+    assert todo is None
+
+
+def test_업데이트(client):
+    # given
+    created_todo = TodoFixtures.todo_등록_요청()
+    todo_id = created_todo["id"]
+
+    # when
+    response = client.patch(f"/todos/{todo_id}", json={"is_done": True})
+
+    # then
+    assert response.status_code == 200
+    todo = todo_repository.find_by_id(session=TestDB.get_session(), todo_id=todo_id)
+    assert todo.is_done is True
