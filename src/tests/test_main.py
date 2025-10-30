@@ -1,3 +1,5 @@
+import pytest
+
 from database import repository as todo_repository
 from tests.fixtures import TodoFixtures, TestDB
 
@@ -9,7 +11,6 @@ def test_헬스체크(client):
     # then
     assert response.status_code == 200
     assert response.json() == {"ping": "pong"}
-
 
 def test_빈목록조회(client):
     # when
