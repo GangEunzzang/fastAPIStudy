@@ -65,7 +65,6 @@ def setup(request):
 def client():
     return get_test_client()
 
-
 @pytest.fixture
-def test_db():
+def session():
     return get_test_session()
