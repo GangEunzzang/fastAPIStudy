@@ -1,13 +1,12 @@
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 
 from database.connection import get_db
 from database.orm import Base
 from main import app
-from tests.fixtures import TodoFixtures
 
 TEST_DATABASE_URL = "sqlite:///:memory:"
 
@@ -23,30 +22,50 @@ TestSessionLocal = sessionmaker(
     bind=test_engine,
 )
 
+# 전역 변수로 관리
+_test_client = None
+_test_session = None
 
-@pytest.fixture(scope="function")
-def test_db():
+
+def get_test_client():
+    return _test_client
+
+
+def get_test_session():
+    return _test_session
+
+
+@pytest.fixture(scope="function", autouse=True)
+def setup(request):
+    global _test_client, _test_session
+
+    # DB 설정
     Base.metadata.create_all(bind=test_engine)
     session = TestSessionLocal()
-    try:
+    _test_session = session
+
+    # Client 설정
+    def override_get_db():
         yield session
-    finally:
-        session.close()
-        Base.metadata.drop_all(bind=test_engine)
+
+    app.dependency_overrides[get_db] = override_get_db
+    _test_client = TestClient(app)
+
+    yield
+
+    # 정리
+    session.close()
+    Base.metadata.drop_all(bind=test_engine)
+    app.dependency_overrides.clear()
+    _test_client = None
+    _test_session = None
 
 
 @pytest.fixture
-def client(test_db):
-    def override_get_db():
-        yield test_db
-
-    app.dependency_overrides[get_db] = override_get_db
-    yield TestClient(app)
-    app.dependency_overrides.clear()
+def client():
+    return get_test_client()
 
 
-@pytest.fixture(autouse=True)
-def setup_fixtures(client, test_db):
-    TodoFixtures.set_client(client)
-    from tests.fixtures import TestDB
-    TestDB.set_session(test_db)
+@pytest.fixture
+def test_db():
+    return get_test_session()

@@ -1,7 +1,5 @@
-import pytest
-
 from database import repository as todo_repository
-from tests.fixtures import TodoFixtures, TestDB
+from tests import fixtures
 
 
 def test_헬스체크(client):
@@ -23,8 +21,8 @@ def test_빈목록조회(client):
 
 def test_목록조회(client):
     # given
-    TodoFixtures.todo_등록_요청()
-    TodoFixtures.todo_등록_요청()
+    fixtures.todo_등록_요청()
+    fixtures.todo_등록_요청()
 
     # when
     response = client.get("/todos")
@@ -36,10 +34,10 @@ def test_목록조회(client):
 
 def test_생성(client):
     # given & when
-    created_todo = TodoFixtures.todo_등록_요청()
+    created_todo = fixtures.todo_등록_요청()
 
     # then
-    todo = todo_repository.find_by_id(session=TestDB.get_session(), todo_id=created_todo["id"])
+    todo = todo_repository.find_by_id(session=fixtures.get_session(), todo_id=created_todo["id"])
 
     assert todo is not None
     assert todo.contents == "Test Todo"
@@ -48,7 +46,7 @@ def test_생성(client):
 
 def test_삭제(client):
     # given
-    created_todo = TodoFixtures.todo_등록_요청()
+    created_todo = fixtures.todo_등록_요청()
     todo_id = created_todo["id"]
 
     # when
@@ -57,13 +55,13 @@ def test_삭제(client):
     # then
     assert response.status_code == 204
 
-    todo = todo_repository.find_by_id(session=TestDB.get_session(), todo_id=todo_id)
+    todo = todo_repository.find_by_id(session=fixtures.get_session(), todo_id=todo_id)
     assert todo is None
 
 
 def test_업데이트(client):
     # given
-    created_todo = TodoFixtures.todo_등록_요청()
+    created_todo = fixtures.todo_등록_요청()
     todo_id = created_todo["id"]
 
     # when
@@ -71,5 +69,5 @@ def test_업데이트(client):
 
     # then
     assert response.status_code == 200
-    todo = todo_repository.find_by_id(session=TestDB.get_session(), todo_id=todo_id)
+    todo = todo_repository.find_by_id(session=fixtures.get_session(), todo_id=todo_id)
     assert todo.is_done is True
